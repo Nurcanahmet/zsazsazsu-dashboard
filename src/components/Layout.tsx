@@ -1,27 +1,21 @@
 // ============================================
-// LAYOUT BİLEŞENİ
+// LAYOUT BİLEŞENİ — GÜNCEL
 // ============================================
-// Tüm sayfaların ortak iskeleti.
-// Sol tarafta Sidebar, sağ tarafta sayfa içeriği gösterilir.
-// Outlet = React Router'ın "aktif sayfayı buraya koy" dediği yer.
-// Mesela /gunluk-satis adresine gidersen, Outlet yerine DailySales sayfası gelir.
+// Sidebar sabit (fixed), sayfa kaydırılınca sidebar yerinde kalır.
 
-import { Outlet } from "react-router-dom";
-import Sidebar from "./Sidebar";
+import { Outlet } from 'react-router-dom';
+import Sidebar from './Sidebar';
 
 function Layout() {
   return (
-    // flex: Sidebar ve içerik yan yana durur
-    // min-h-screen: sayfa en az ekran yüksekliğinde olur
     <div className="flex min-h-screen">
-      {/* Sol taraf — Sidebar (bordo menü) */}
-      <Sidebar storeName="İstanbul Emaar AVM" />
+      {/* Sidebar — sabit (fixed), kaydırılmaz */}
+      <div className="w-56 fixed top-0 left-0 h-screen z-10">
+        <Sidebar storeName="İstanbul Emaar AVM" />
+      </div>
 
-      {/* Sağ taraf — Sayfa içeriği */}
-      {/* flex-1: kalan tüm alanı kaplar */}
-      {/* bg-[#d7d2cb]: bej arka plan */}
-      {/* overflow-y-auto: içerik uzunsa scroll çıkar */}
-      <main className="flex-1 bg-[#d7d2cb] overflow-y-auto">
+      {/* İçerik alanı — sidebar genişliği kadar sola boşluk bırakır */}
+      <main className="flex-1 ml-56 bg-[#d7d2cb] overflow-y-auto min-h-screen">
         <Outlet />
       </main>
     </div>
