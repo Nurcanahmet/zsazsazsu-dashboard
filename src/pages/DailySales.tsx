@@ -27,7 +27,7 @@ interface StoreData {
   SepetBüyüklüğüTutar: number;
   BirimFiyatı: number;
   HedefGerçekleşenYüzde: number;
-  'Günlük Hedef': number;
+  'GünlükHedef': number;
   Invoicedate: string;
   HaftalikDegisim: number;
 }
@@ -140,7 +140,7 @@ function DailySales() {
         birimFiyat: store.BirimFiyatı || 0,
         sepetTutar: store.SepetBüyüklüğüTutar || 0,
         sepetAdet: store.SepetBüyüklüğüAdet || 0,
-        hedef: store['Günlük Hedef'] || 0,
+        hedef: store['GünlükHedef'] || 0,
         gecenYilSatis: store['LFL Satış (VH)'] || 0,
         yillikDegisim: store['LFL Satış (VH) % Değişim'] || 0,
         faturaSayisi: store['Fatura Sayısı'] || 0,
@@ -154,7 +154,7 @@ function DailySales() {
         Kar: acc.Kar + (s.Kar || 0),
         Fatura: acc.Fatura + (s['Fatura Sayısı'] || 0),
         Ziyaretci: acc.Ziyaretci + (s['Giren Kişi Sayısı'] || 0),
-        Hedef: acc.Hedef + (s['Günlük Hedef'] || 0),
+        Hedef: acc.Hedef + (s['GünlükHedef'] || 0),
         LFL: acc.LFL + (s['LFL Satış (VH)'] || 0),
       }),
       { SATISVH: 0, Qty1: 0, Kar: 0, Fatura: 0, Ziyaretci: 0, Hedef: 0, LFL: 0 }
@@ -281,7 +281,7 @@ function DailySales() {
 
             <div className="grid grid-cols-5 gap-3 mb-3">
               {[
-                { label: 'Günlük Hedef', value: `₺${fmt(data.hedef)}` },
+                { label: 'GünlükHedef', value: `₺${fmt(data.hedef)}` },
                 { label: 'Toplam Satış (VH)', value: `₺${fmt(data.toplamSatis)}` },
                 { label: 'Mağazaya Giren Kişi', value: fmt(data.magazaGirenKisi) },
                 { label: 'Ort. Dönüşüm', value: `%${fmtPct(data.ortDonusum)}` },
@@ -359,7 +359,7 @@ function DailySales() {
                   data={allStores.map((s) => ({
                     name: s.StoreCode,
                     satis: s.SATISVH,
-                    hedef: s['Günlük Hedef'],
+                    hedef: s['GünlükHedef'],
                   }))}
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
