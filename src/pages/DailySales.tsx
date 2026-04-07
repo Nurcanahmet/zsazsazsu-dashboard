@@ -65,14 +65,26 @@ const emptyData: DisplayData = {
 };
 
 function DailySales() {
+  // localStorage'dan giriş yapan kullanıcıyı oku
+  const userStr = localStorage.getItem('user');
+  const user = userStr ? JSON.parse(userStr) : null;
+  const userRole = user?.role || 'admin'; // admin | super_user | store
+  const userStoreCodes: string[] | null = user?.storeCodes || null;
+  // store rolü → sadece kendi mağazasını görebilir
+  // super_user → sadece izinli mağazaları görebilir
+  // admin → tümünü görebilir (storeCodes null)
   const [startDate, setStartDate] = useState('2025-09-07');
   const [endDate, setEndDate] = useState('2025-09-07');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [slowLoading, setSlowLoading] = useState(false);
   const [allStores, setAllStores] = useState<StoreData[]>([]);
-  const [selectedStore, setSelectedStore] = useState<string>('');
-
+// Eğer store kullanıcısıysa otomatik olarak kendi mağazası seçili gelir
+  const [selectedStore, setSelectedStore] = useState<string>(
+    userRole === 'store' && userStoreCodes && userStoreCodes.length > 0
+      ? userStoreCodes[0]
+      : ''
+  );
   const fetchData = async (start: string, end: string) => {
     setLoading(true);
     setError(null);
@@ -120,6 +132,12 @@ function DailySales() {
   useEffect(() => {
     fetchData(startDate, endDate);
   }, []);
+
+  // ---------- KULLANICI YETKİSİ KONTROLÜ ----------
+  // Veri geldikten sonra: store/super_user için sadece izinli mağazaları filtrele
+  const visibleStores = userStoreCodes
+    ? allStores.filter(s => userStoreCodes.includes(s.StoreCode))
+    : allStores;
 
   const handleFilter = () => fetchData(startDate, endDate);
 
@@ -192,13 +210,17 @@ function DailySales() {
         <div className="flex items-end gap-3 flex-wrap">
           <div>
             <label className="text-xs text-[#5d0024]/60 block mb-1">Mağaza</label>
-            <select
+          <select
               value={selectedStore}
               onChange={(e) => setSelectedStore(e.target.value)}
-              className="bg-[#5d0024] text-[#d7d2cb] border border-white/20 rounded-lg px-3 py-1.5 text-sm outline-none min-w-[200px]"
+              disabled={userRole === 'store'}
+              className="bg-[#5d0024] text-[#d7d2cb] border border-white/20 rounded-lg px-3 py-1.5 text-sm outline-none min-w-[200px] disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              <option value="">Tüm Mağazalar (Toplam)</option>
-              {allStores.map((s) => (
+              {/* Sadece admin için "Tüm Mağazalar" seçeneği görünür */}
+              {userRole === 'admin' && (
+                <option value="">Tüm Mağazalar (Toplam)</option>
+              )}
+              {visibleStores.map((s) => (
                 <option key={s.StoreCode} value={s.StoreCode}>
                   {s.StoreDescription}
                 </option>
@@ -351,12 +373,12 @@ function DailySales() {
             </div>
           </div>
 
-          {!selectedStore && allStores.length > 0 && (
+          {!selectedStore && visibleStores.length > 0 && (
             <div className="bg-white rounded-xl p-5 border border-gray-200">
               <h3 className="text-sm font-bold text-[#2a0010] uppercase mb-4">📊 Mağaza Bazında Satış Karşılaştırması</h3>
               <ResponsiveContainer width="100%" height={400}>
                 <BarChart
-                  data={allStores.map((s) => ({
+                  data={visibleStores.map((s) => ({
                     name: s.StoreCode,
                     satis: s.SATISVH,
                     hedef: s['GünlükHedef'],
@@ -378,5 +400,7 @@ function DailySales() {
     </div>
   );
 }
+
+
 
 export default DailySales;

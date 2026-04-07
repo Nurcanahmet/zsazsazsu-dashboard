@@ -2,6 +2,7 @@
 // LAYOUT BİLEŞENİ — GÜNCEL
 // ============================================
 // Sidebar sabit (fixed), sayfa kaydırılınca sidebar yerinde kalır.
+// Sidebar artık storeName prop'u almıyor, kullanıcı bilgisini kendi okuyor.
 
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
@@ -11,7 +12,7 @@ function Layout() {
     <div className="flex min-h-screen">
       {/* Sidebar — sabit (fixed), kaydırılmaz */}
       <div className="w-56 fixed top-0 left-0 h-screen z-10">
-        <Sidebar storeName="İstanbul Emaar AVM" />
+        <Sidebar />
       </div>
 
       {/* İçerik alanı — sidebar genişliği kadar sola boşluk bırakır */}

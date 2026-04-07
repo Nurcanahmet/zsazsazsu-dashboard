@@ -2,19 +2,28 @@
 // SIDEBAR BİLEŞENİ
 // ============================================
 // Sol taraftaki bordo menü. Her sayfada görünür.
-// İçinde marka logosu, mağaza adı ve menü linkleri var.
-// React Router'ın NavLink'i ile hangi sayfadaysan o link aktif görünür.
+// Kullanıcı bilgisini localStorage'dan otomatik okur.
 
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 
-// Sidebar bileşeni storeName prop'u alır — giriş yapan kullanıcının mağaza adı
-interface SidebarProps {
-  storeName: string;
-}
+function Sidebar() {
+  const navigate = useNavigate();
 
-function Sidebar({ storeName }: SidebarProps) {
-  // Menü öğeleri — her biri bir sayfa
-  // path: URL adresi, label: menüde görünen isim
+  // ---------- KULLANICI BİLGİSİ ----------
+  // localStorage'dan giriş yapan kullanıcıyı oku
+  // user şöyle bir obje: { email, name, role, storeCodes }
+  const userStr = localStorage.getItem('user');
+  const user = userStr ? JSON.parse(userStr) : null;
+  const displayName = user?.name || 'Misafir';
+
+  // ---------- ÇIKIŞ FONKSİYONU ----------
+  const handleLogout = () => {
+    if (window.confirm('Çıkış yapmak istediğinizden emin misiniz?')) {
+      localStorage.removeItem('user');
+      navigate('/login');
+    }
+  };
+
   const menuItems = [{ path: "/", label: "Genel Bakış", icon: "📊" }];
 
   const storeMenuItems = [
@@ -24,17 +33,15 @@ function Sidebar({ storeName }: SidebarProps) {
   ];
 
   return (
-    // Sidebar: sabit genişlik, tam ekran yükseklik, bordo arka plan
     <aside className="w-56 min-h-screen bg-[#5d0024] text-white flex flex-col">
-      {/* Marka logosu ve mağaza adı */}
+      {/* Marka logosu ve kullanıcı adı */}
       <div className="p-4 border-b border-white/20">
         <h1 className="text-lg font-bold tracking-wider">zsa·zsa·zsu</h1>
-        <p className="text-sm text-[#e8b4c0] mt-1">{storeName}</p>
+        <p className="text-sm text-[#e8b4c0] mt-1">{displayName}</p>
       </div>
 
       {/* Menü linkleri */}
       <nav className="flex-1 p-3">
-        {/* Genel Bakış */}
         {menuItems.map((item) => (
           <NavLink
             key={item.path}
@@ -53,7 +60,6 @@ function Sidebar({ storeName }: SidebarProps) {
           </NavLink>
         ))}
 
-        {/* MAĞAZA bölümü */}
         <p className="text-xs text-[#e8b4c0]/60 uppercase tracking-wider mt-4 mb-2 px-3">
           Mağaza
         </p>
@@ -75,9 +81,12 @@ function Sidebar({ storeName }: SidebarProps) {
         ))}
       </nav>
 
-      {/* Alt kısım — Çıkış */}
+      {/* Alt kısım — Çıkış butonu */}
       <div className="p-4 border-t border-white/20">
-        <button className="flex items-center gap-2 text-sm text-[#e8b4c0] hover:text-white transition-colors">
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-[#e8b4c0] hover:bg-white/10 hover:text-white hover:shadow-lg transition-all duration-200"
+        >
           <span>🚪</span>
           <span>Çıkış Yap</span>
         </button>
