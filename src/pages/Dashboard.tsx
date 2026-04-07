@@ -1,228 +1,361 @@
-// ============================================
-// GENEL BAKIŞ SAYFASI (Dashboard.tsx) — API BAĞLANTILI
-// ============================================
-// Artık sabit veri yok — veriler backend'den (localhost:3001) geliyor.
-// Backend SOLIDV3 veritabanına bağlanıp gerçek Nebim verilerini döner.
+import { useState, useEffect, useCallback } from 'react';
 
-import { useState, useEffect } from 'react';
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar,
-} from 'recharts';
-import KPICard from '../components/KPICard';
-
-// API adresi — backend'in çalıştığı adres
 const API = 'http://localhost:3001/api';
 
-function Dashboard() {
-  // ---------- STATE ----------
-  const today = new Date().toISOString().split('T')[0];
-  const [startDate, setStartDate] = useState(today);
-  const [endDate, setEndDate] = useState(today);
-  const [period, setPeriod] = useState('custom');
-  const [loading, setLoading] = useState(false);
+type StoreRow = {
+  StoreCode: string;
+  StoreDescription: string;
+  Qty1: number;
+  SMM: number;
+  SATISVH: number;
+  Kar: number;
+  'Bürüt KAR %': number;
+  'Fatura Sayısı': number;
+  'Giren Kişi Sayısı': number;
+  'Dönüşüm Oranı': number;
+  'LFL Satış (VH)': number;
+  'LFL Satış (VH) % Değişim': number | null;
+  SepetBüyüklügüAdet: number;
+  SepetBüyüklügüTutar: number;
+  BirimFiyatı: number;
+  HedefGerçekleşenYüzde: number;
+  GünlükHedef: number;
+  HaftalikDegisim: number;
+};
 
-  // KPI verileri — başlangıçta boş, API'den dolacak
-  const [kpis, setKpis] = useState({ toplamCiro: 0, ortSepet: 0, ziyaretci: 0, kritikStok: 0 });
-  const [salesTrend, setSalesTrend] = useState([]);
-  const [hourlyTraffic, setHourlyTraffic] = useState([]);
-  const [stockItems, setStockItems] = useState([]);
+const fmt = (v?: number | null) =>
+  v == null ? '-' : `₺${Math.round(v).toLocaleString('tr-TR')}`;
+const fmtN = (v?: number | null) =>
+  v == null ? '-' : Math.round(v).toLocaleString('tr-TR');
+const fmtP = (v?: number | null) =>
+  v == null ? '-' : `%${Number(v).toFixed(1)}`;
 
-  // ---------- VERİ ÇEKME FONKSİYONLARI ----------
-  // useEffect: sayfa açıldığında otomatik veri çeker
-  // fetchData: Filtrele butonuna basılınca da çalışır
+function hedefRenk(pct: number) {
+  if (pct >= 100) return 'text-emerald-600';
+  if (pct >= 75) return 'text-amber-500';
+  return 'text-red-500';
+}
 
-  const fetchData = async (start: string, end: string) => {
-    setLoading(true);
-    try {
-      // Tüm API çağrılarını aynı anda at (Promise.all = hepsi paralel çalışır)
-      const [kpiRes, trendRes, trafficRes, stockRes] = await Promise.all([
-        fetch(`${API}/dashboard/kpis?startDate=${start}&endDate=${end}`),
-        fetch(`${API}/dashboard/sales-trend?startDate=${start}&endDate=${end}`),
-        fetch(`${API}/dashboard/hourly-traffic?startDate=${start}&endDate=${end}`),
-        fetch(`${API}/dashboard/critical-stock`),
-      ]);
-
-      // JSON'a çevir
-      const kpiData = await kpiRes.json();
-      const trendData = await trendRes.json();
-      const trafficData = await trafficRes.json();
-      const stockData = await stockRes.json();
-
-      // State'leri güncelle — ekran otomatik yenilenir
-      setKpis(kpiData);
-      setSalesTrend(trendData);
-      setHourlyTraffic(trafficData);
-      setStockItems(stockData);
-    } catch (err) {
-      console.error('Veri çekme hatası:', err);
-    }
-    setLoading(false);
-  };
-
-  // Sayfa ilk açıldığında veri çek
-  useEffect(() => {
-    fetchData(startDate, endDate);
-  }, []);
-
-  // Filtrele butonuna basılınca
-  const handleFilter = () => {
-    fetchData(startDate, endDate);
-  };
-
-  // Stok durumuna göre renk
-  const stockColor = (status: string) => {
-    if (status === 'critical') return 'bg-[#e41e2d]/20 text-[#e41e2d]';
-    if (status === 'warning') return 'bg-[#c4a11b]/20 text-[#c4a11b]';
-    return 'bg-[#004f59]/20 text-[#004f59]';
-  };
-
+function hedefBar(pct: number) {
+  const capped = Math.min(pct, 100);
+  let color = 'bg-red-400';
+  if (pct >= 100) color = 'bg-emerald-500';
+  else if (pct >= 75) color = 'bg-amber-400';
   return (
-    <div className="p-6">
-      {/* ===== SAYFA BAŞLIĞI ===== */}
-      <h1 className="text-2xl font-bold text-[#5d0024]">İstanbul Emaar AVM</h1>
-      <p className="text-[#5d0024]/60 mb-4">Genel Bakış</p>
-
-      {/* ===== TARİH FİLTRESİ ===== */}
-      <div className="flex items-end gap-3 mb-6">
-        <div>
-          <select
-            value={period}
-            onChange={(e) => setPeriod(e.target.value)}
-            className="bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-[#5d0024] outline-none"
-          >
-            <option value="today">Bugün</option>
-            <option value="week">Bu Hafta</option>
-            <option value="month">Bu Ay</option>
-            <option value="custom">Özel Tarih</option>
-          </select>
-        </div>
-
-        {period === 'custom' && (
-          <>
-            <div>
-              <label className="text-xs text-[#5d0024]/60 block mb-1">Başlangıç</label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-[#5d0024] outline-none"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-[#5d0024]/60 block mb-1">Bitiş</label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-[#5d0024] outline-none"
-              />
-            </div>
-            <button
-              onClick={handleFilter}
-              className="bg-[#5d0024] text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-[#7a0030] transition-colors"
-            >
-              {loading ? 'Yükleniyor...' : 'Filtrele'}
-            </button>
-          </>
-        )}
-      </div>
-
-      {/* ===== KPI KARTLARI ===== */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
-        <KPICard
-          title="Toplam Ciro"
-          value={`₺${kpis.toplamCiro.toLocaleString('tr-TR')}`}
-          subtitle={`${startDate} - ${endDate}`}
-        />
-        <KPICard
-          title="Ort. Sepet Tutarı"
-          value={`₺${kpis.ortSepet.toLocaleString('tr-TR')}`}
-          subtitle={`${startDate} - ${endDate}`}
-        />
-        <KPICard
-          title="Ziyaretçi Sayısı"
-          value={kpis.ziyaretci.toLocaleString('tr-TR')}
-          subtitle={`${startDate} - ${endDate}`}
-        />
-        <KPICard
-          title="Kritik Stok"
-          value={`${kpis.kritikStok} ürün`}
-          badge="Dikkat"
-          badgeColor="yellow"
-        />
-      </div>
-
-      {/* ===== GRAFİKLER ===== */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        {/* Satış Trendi */}
-        <div className="col-span-2 bg-white rounded-xl p-4 border border-gray-200">
-          <h3 className="text-sm font-medium text-[#5d0024] mb-4">Satış Trendi</h3>
-          {salesTrend.length === 0 ? (
-            <div className="flex items-center justify-center h-[250px] text-gray-400">Veri yok</div>
-          ) : (
-            <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={salesTrend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `₺${v / 1000}K`} />
-                <Tooltip formatter={(v: any) => [`₺${Number(v).toLocaleString('tr-TR')}`, 'Satış']} />
-                <Line type="monotone" dataKey="amount" stroke="#5d0024" strokeWidth={2} dot={{ fill: '#5d0024', r: 3 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-
-        {/* Kategori Dağılımı — ileride eklenecek */}
-        <div className="bg-white rounded-xl p-4 border border-gray-200">
-          <h3 className="text-sm font-medium text-[#5d0024] mb-4">Kategori Dağılımı</h3>
-          <div className="flex items-center justify-center h-[250px] text-gray-400">
-            Veri yok
-          </div>
-        </div>
-      </div>
-
-      {/* ===== ALT KISIM ===== */}
-      <div className="grid grid-cols-2 gap-4">
-        {/* Saatlik Müşteri Trafiği */}
-        <div className="bg-white rounded-xl p-4 border border-gray-200">
-          <h3 className="text-sm font-medium text-[#5d0024] mb-4">Saatlik Müşteri Trafiği (Seçili Dönem)</h3>
-          {hourlyTraffic.length === 0 ? (
-            <div className="flex items-center justify-center h-[200px] text-gray-400">Veri yok</div>
-          ) : (
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={hourlyTraffic}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="hour" tick={{ fontSize: 10 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Bar dataKey="count" fill="#825dc7" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-
-        {/* Stok Durumu */}
-        <div className="bg-white rounded-xl p-4 border border-gray-200">
-          <h3 className="text-sm font-medium text-[#5d0024] mb-4">Stok Durumu</h3>
-          {stockItems.length === 0 ? (
-            <div className="flex items-center justify-center h-[200px] text-gray-400">Veri yok</div>
-          ) : (
-            <div className="space-y-2">
-              {stockItems.map((item: any, i: number) => (
-                <div key={i} className="flex items-center justify-between py-1.5 border-b border-gray-100 last:border-0">
-                  <span className="text-sm text-[#2a0010]">{item.name}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${stockColor(item.status)}`}>
-                    {item.stock} adet
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+    <div className="w-full bg-gray-100 rounded-full h-1.5 mt-1">
+      <div
+        className={`${color} h-1.5 rounded-full transition-all duration-500`}
+        style={{ width: `${capped}%` }}
+      />
     </div>
   );
 }
 
-export default Dashboard;
+function KPI({
+  title,
+  value,
+  sub,
+  accent = false,
+}: {
+  title: string;
+  value: string;
+  sub?: string;
+  accent?: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-xl p-4 border ${
+        accent
+          ? 'bg-[#5d0024] border-[#5d0024] text-white'
+          : 'bg-white border-gray-200 text-[#2a0010]'
+      }`}
+    >
+      <p className={`text-xs mb-1 ${accent ? 'text-white/60' : 'text-[#5d0024]/50'}`}>
+        {title}
+      </p>
+      <p className={`text-xl font-bold ${accent ? 'text-white' : 'text-[#5d0024]'}`}>
+        {value}
+      </p>
+      {sub && (
+        <p className={`text-xs mt-0.5 ${accent ? 'text-white/50' : 'text-gray-400'}`}>
+          {sub}
+        </p>
+      )}
+    </div>
+  );
+}
+
+export default function Dashboard() {
+  const today = new Date().toISOString().split('T')[0];
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(today);
+  const [loading, setLoading] = useState(false);
+  const [stores, setStores] = useState<StoreRow[]>([]);
+  const [error, setError] = useState('');
+  const [sortKey, setSortKey] = useState<keyof StoreRow>('SATISVH');
+  const [sortAsc, setSortAsc] = useState(false);
+
+  const fetchData = useCallback(async (start: string, end: string) => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`${API}/dashboard/gunluk?startDate=${start}&endDate=${end}`);
+      if (!res.ok) throw new Error('API hatası');
+      const data = await res.json();
+      setStores(Array.isArray(data) ? data : data.stores ?? []);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData(startDate, endDate);
+  }, []);
+
+  // --- Toplam hesapla ---
+  const total = stores.reduce(
+    (acc, s) => ({
+      satis: acc.satis + (s.SATISVH || 0),
+      miktar: acc.miktar + (s.Qty1 || 0),
+      kar: acc.kar + (s.Kar || 0),
+      hedef: acc.hedef + (s.GünlükHedef || 0),
+      fatura: acc.fatura + (s['Fatura Sayısı'] || 0),
+      ziyaretci: acc.ziyaretci + (s['Giren Kişi Sayısı'] || 0),
+    }),
+    { satis: 0, miktar: 0, kar: 0, hedef: 0, fatura: 0, ziyaretci: 0 }
+  );
+
+  const ortDonusum =
+    total.ziyaretci > 0 ? (total.fatura / total.ziyaretci) * 100 : 0;
+  const ortSepet = total.fatura > 0 ? total.satis / total.fatura : 0;
+  const birimFiyat = total.miktar > 0 ? total.satis / total.miktar : 0;
+  const brutKar = total.satis > 0 ? (total.kar / total.satis) * 100 : 0;
+  const hedefPct = total.hedef > 0 ? (total.satis / total.hedef) * 100 : 0;
+
+  // --- Sıralama ---
+  const sorted = [...stores].sort((a, b) => {
+    const av = a[sortKey] as number;
+    const bv = b[sortKey] as number;
+    if (av == null) return 1;
+    if (bv == null) return -1;
+    return sortAsc ? av - bv : bv - av;
+  });
+
+  const handleSort = (key: keyof StoreRow) => {
+    if (sortKey === key) setSortAsc(!sortAsc);
+    else { setSortKey(key); setSortAsc(false); }
+  };
+
+  const SortTh = ({
+    label,
+    k,
+  }: {
+    label: string;
+    k: keyof StoreRow;
+  }) => (
+    <th
+      className="py-2 px-3 text-left cursor-pointer select-none whitespace-nowrap hover:text-[#5d0024] transition-colors"
+      onClick={() => handleSort(k)}
+    >
+      {label}
+      {sortKey === k && (
+        <span className="ml-1 text-[#5d0024]">{sortAsc ? '↑' : '↓'}</span>
+      )}
+    </th>
+  );
+
+  return (
+    <div className="p-6 min-h-screen bg-gray-50">
+      {/* Başlık */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-[#5d0024]">Genel Bakış</h1>
+        <p className="text-[#5d0024]/50 text-sm">Tüm Mağazalar — Consolidated</p>
+      </div>
+
+      {/* Filtre */}
+      <div className="flex items-end gap-3 mb-6 flex-wrap">
+        <div>
+          <label className="text-xs text-[#5d0024]/60 block mb-1">Başlangıç</label>
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-[#5d0024] outline-none"
+          />
+        </div>
+        <div>
+          <label className="text-xs text-[#5d0024]/60 block mb-1">Bitiş</label>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-[#5d0024] outline-none"
+          />
+        </div>
+        <button
+          onClick={() => fetchData(startDate, endDate)}
+          disabled={loading}
+          className="bg-[#5d0024] text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-[#7a0030] transition-colors disabled:opacity-50"
+        >
+          {loading ? 'Yükleniyor...' : 'Filtrele'}
+        </button>
+
+        {/* Hızlı seçimler */}
+        {['Bugün', 'Dün', 'Bu Hafta'].map((lbl) => (
+          <button
+            key={lbl}
+            onClick={() => {
+              const t = new Date();
+              let s = today, e = today;
+              if (lbl === 'Dün') {
+                const d = new Date(t);
+                d.setDate(d.getDate() - 1);
+                s = e = d.toISOString().split('T')[0];
+              } else if (lbl === 'Bu Hafta') {
+                const d = new Date(t);
+                d.setDate(d.getDate() - d.getDay() + 1);
+                s = d.toISOString().split('T')[0];
+              }
+              setStartDate(s);
+              setEndDate(e);
+              fetchData(s, e);
+            }}
+            className="bg-white border border-gray-300 text-[#5d0024] px-4 py-2 rounded-lg text-sm hover:border-[#5d0024] transition-colors"
+          >
+            {lbl}
+          </button>
+        ))}
+      </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-600 rounded-lg px-4 py-3 mb-4 text-sm">
+          {error}
+        </div>
+      )}
+
+      {/* KPI Kartları — Satır 1 */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+        <KPI title="Toplam Ciro" value={fmt(total.satis)} accent />
+        <KPI title="Hedef Gerçekleşme" value={fmtP(hedefPct)} sub={`Hedef: ${fmt(total.hedef)}`} />
+        <KPI title="Toplam Miktar" value={fmtN(total.miktar)} sub="adet" />
+        <KPI title="Toplam Fatura" value={fmtN(total.fatura)} />
+      </div>
+
+      {/* KPI Kartları — Satır 2 */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <KPI title="Toplam Ziyaretçi" value={fmtN(total.ziyaretci)} />
+        <KPI title="Dönüşüm Oranı" value={fmtP(ortDonusum)} />
+        <KPI title="Ort. Sepet Tutarı" value={fmt(ortSepet)} />
+        <KPI title="Brüt Kâr %" value={fmtP(brutKar)} sub={`Kâr: ${fmt(total.kar)}`} />
+      </div>
+
+      {/* Mağaza Tablosu */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-[#5d0024]">
+            Mağaza Bazlı Performans
+          </h3>
+          <span className="text-xs text-gray-400">{stores.length} mağaza</span>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center h-40 text-[#5d0024]/40 text-sm">
+            Yükleniyor...
+          </div>
+        ) : stores.length === 0 ? (
+          <div className="flex items-center justify-center h-40 text-gray-400 text-sm">
+            Seçilen tarih aralığında veri bulunamadı.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="bg-gray-50 text-gray-500 font-medium border-b border-gray-100">
+                <tr>
+                  <th className="py-2 px-3 text-left whitespace-nowrap">Mağaza</th>
+                  <SortTh label="Satış (VH)" k="SATISVH" />
+                  <SortTh label="Hedef %" k="HedefGerçekleşenYüzde" />
+                  <SortTh label="Fatura" k="Fatura Sayısı" />
+                  <SortTh label="Miktar" k="Qty1" />
+                  <SortTh label="Ziyaretçi" k="Giren Kişi Sayısı" />
+                  <SortTh label="Dönüşüm %" k="Dönüşüm Oranı" />
+                  <SortTh label="Sepet ₺" k="SepetBüyüklügüTutar" />
+                  <SortTh label="Birim ₺" k="BirimFiyatı" />
+                  <SortTh label="Brüt Kâr %" k="Bürüt KAR %" />
+                  <SortTh label="LFL %" k="LFL Satış (VH) % Değişim" />
+                </tr>
+              </thead>
+              <tbody>
+                {sorted.map((s, i) => {
+                  const lfl = s['LFL Satış (VH) % Değişim'];
+                  const pct = s.HedefGerçekleşenYüzde || 0;
+                  return (
+                    <tr
+                      key={s.StoreCode}
+                      className={`border-b border-gray-50 hover:bg-[#5d0024]/5 transition-colors ${
+                        i % 2 === 0 ? '' : 'bg-gray-50/50'
+                      }`}
+                    >
+                      <td className="py-2.5 px-3 font-medium text-[#2a0010] whitespace-nowrap">
+                        <span className="text-[10px] text-gray-400 mr-1">{s.StoreCode}</span>
+                        {s.StoreDescription}
+                      </td>
+                      <td className="py-2.5 px-3 font-semibold text-[#5d0024]">
+                        {fmt(s.SATISVH)}
+                      </td>
+                      <td className="py-2.5 px-3 min-w-[90px]">
+                        <span className={`font-semibold ${hedefRenk(pct)}`}>
+                          %{pct.toFixed(1)}
+                        </span>
+                        {hedefBar(pct)}
+                      </td>
+                      <td className="py-2.5 px-3">{s['Fatura Sayısı']}</td>
+                      <td className="py-2.5 px-3">{s.Qty1}</td>
+                      <td className="py-2.5 px-3">{fmtN(s['Giren Kişi Sayısı'])}</td>
+                      <td className="py-2.5 px-3">%{s['Dönüşüm Oranı']?.toFixed(1)}</td>
+                      <td className="py-2.5 px-3">{fmt(s.SepetBüyüklügüTutar)}</td>
+                      <td className="py-2.5 px-3">{fmt(s.BirimFiyatı)}</td>
+                      <td className="py-2.5 px-3">
+                        %{((s['Bürüt KAR %'] || 0) * 100).toFixed(1)}
+                      </td>
+                      <td className="py-2.5 px-3">
+                        {lfl == null ? (
+                          <span className="text-gray-300">—</span>
+                        ) : (
+                          <span className={lfl >= 0 ? 'text-emerald-600' : 'text-red-500'}>
+                            {lfl >= 0 ? '+' : ''}{lfl.toFixed(1)}%
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+
+              {/* Toplam satırı */}
+              <tfoot className="bg-[#5d0024]/5 border-t-2 border-[#5d0024]/20 font-semibold text-[#2a0010]">
+                <tr>
+                  <td className="py-2.5 px-3">TOPLAM / ORT.</td>
+                  <td className="py-2.5 px-3 text-[#5d0024]">{fmt(total.satis)}</td>
+                  <td className="py-2.5 px-3">
+                    <span className={hedefRenk(hedefPct)}>%{hedefPct.toFixed(1)}</span>
+                    {hedefBar(hedefPct)}
+                  </td>
+                  <td className="py-2.5 px-3">{fmtN(total.fatura)}</td>
+                  <td className="py-2.5 px-3">{fmtN(total.miktar)}</td>
+                  <td className="py-2.5 px-3">{fmtN(total.ziyaretci)}</td>
+                  <td className="py-2.5 px-3">%{ortDonusum.toFixed(1)}</td>
+                  <td className="py-2.5 px-3">{fmt(ortSepet)}</td>
+                  <td className="py-2.5 px-3">{fmt(birimFiyat)}</td>
+                  <td className="py-2.5 px-3">%{brutKar.toFixed(1)}</td>
+                  <td className="py-2.5 px-3">—</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
