@@ -208,25 +208,26 @@ function DailySales() {
         </div>
 
         <div className="flex items-end gap-3 flex-wrap">
-          <div>
-            <label className="text-xs text-[#5d0024]/60 block mb-1">Mağaza</label>
-          <select
-              value={selectedStore}
-              onChange={(e) => setSelectedStore(e.target.value)}
-              disabled={userRole === 'store'}
-              className="bg-[#5d0024] text-[#d7d2cb] border border-white/20 rounded-lg px-3 py-1.5 text-sm outline-none min-w-[200px] disabled:opacity-70 disabled:cursor-not-allowed"
-            >
-              {/* Sadece admin için "Tüm Mağazalar" seçeneği görünür */}
-              {userRole === 'admin' && (
-                <option value="">Tüm Mağazalar (Toplam)</option>
-              )}
-              {visibleStores.map((s) => (
-                <option key={s.StoreCode} value={s.StoreCode}>
-                  {s.StoreDescription}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Mağaza dropdown — sadece admin ve super_user için görünür */}
+          {userRole !== 'store' && (
+            <div>
+              <label className="text-xs text-[#5d0024]/60 block mb-1">Mağaza</label>
+              <select
+                value={selectedStore}
+                onChange={(e) => setSelectedStore(e.target.value)}
+                className="bg-[#5d0024] text-[#d7d2cb] border border-white/20 rounded-lg px-3 py-1.5 text-sm outline-none min-w-[200px]"
+              >
+                {userRole === 'admin' && (
+                  <option value="">Tüm Mağazalar (Toplam)</option>
+                )}
+                {visibleStores.map((s) => (
+                  <option key={s.StoreCode} value={s.StoreCode}>
+                    {s.StoreDescription}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label className="text-xs text-[#5d0024]/60 block mb-1">Başlangıç</label>
