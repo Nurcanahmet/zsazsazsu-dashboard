@@ -86,6 +86,12 @@ function KPI({
 }
 
 export default function Dashboard() {
+  // ---------- KULLANICI BİLGİSİ ----------
+  const userStr = localStorage.getItem('user');
+  const user = userStr ? JSON.parse(userStr) : null;
+  const userRole = user?.role || 'admin';
+  const userStoreCodes: string[] | null = user?.storeCodes || null;
+
   const today = new Date().toISOString().split('T')[0];
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
@@ -114,8 +120,16 @@ export default function Dashboard() {
     fetchData(startDate, endDate);
   }, []);
 
-  // --- Toplam hesapla ---
-  const total = stores.reduce(
+  console.log('🔥 Dashboard - userRole:', userRole, 'storeCodes:', userStoreCodes);
+
+  // ---------- KULLANICI YETKİSİ FİLTRESİ ----------
+  // store/super_user için sadece izinli mağazaları göster
+  const visibleStores = userStoreCodes
+    ? stores.filter(s => userStoreCodes.includes(s.StoreCode))
+    : stores;
+
+  // --- Toplam hesapla (sadece görünür mağazalar üzerinden) ---
+  const total = visibleStores.reduce(
     (acc, s) => ({
       satis: acc.satis + (s.SATISVH || 0),
       miktar: acc.miktar + (s.Qty1 || 0),
@@ -135,7 +149,7 @@ export default function Dashboard() {
   const hedefPct = total.hedef > 0 ? (total.satis / total.hedef) * 100 : 0;
 
   // --- Sıralama ---
-  const sorted = [...stores].sort((a, b) => {
+  const sorted = [...visibleStores].sort((a, b) => {
     const av = a[sortKey] as number;
     const bv = b[sortKey] as number;
     if (av == null) return 1;
@@ -171,7 +185,13 @@ export default function Dashboard() {
       {/* Başlık */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-[#5d0024]">Genel Bakış</h1>
-        <p className="text-[#5d0024]/50 text-sm">Tüm Mağazalar — Consolidated</p>
+        <p className="text-[#5d0024]/50 text-sm">
+          {userRole === 'store'
+            ? `${user?.name} - Mağaza Performansı`
+            : userRole === 'super_user'
+            ? `Bölge Mağazaları (${visibleStores.length})`
+            : 'Tüm Mağazalar — Consolidated'}
+        </p>
       </div>
 
       {/* Filtre */}
@@ -255,16 +275,16 @@ export default function Dashboard() {
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-[#5d0024]">
-            Mağaza Bazlı Performans
+            {userRole === 'store' ? 'Mağaza Detayları' : 'Mağaza Bazlı Performans'}
           </h3>
-          <span className="text-xs text-gray-400">{stores.length} mağaza</span>
+          <span className="text-xs text-gray-400">{visibleStores.length} mağaza</span>
         </div>
 
         {loading ? (
           <div className="flex items-center justify-center h-40 text-[#5d0024]/40 text-sm">
             Yükleniyor...
           </div>
-        ) : stores.length === 0 ? (
+        ) : visibleStores.length === 0 ? (
           <div className="flex items-center justify-center h-40 text-gray-400 text-sm">
             Seçilen tarih aralığında veri bulunamadı.
           </div>
@@ -333,25 +353,27 @@ export default function Dashboard() {
                 })}
               </tbody>
 
-              {/* Toplam satırı */}
-              <tfoot className="bg-[#5d0024]/5 border-t-2 border-[#5d0024]/20 font-semibold text-[#2a0010]">
-                <tr>
-                  <td className="py-2.5 px-3">TOPLAM / ORT.</td>
-                  <td className="py-2.5 px-3 text-[#5d0024]">{fmt(total.satis)}</td>
-                  <td className="py-2.5 px-3">
-                    <span className={hedefRenk(hedefPct)}>%{hedefPct.toFixed(1)}</span>
-                    {hedefBar(hedefPct)}
-                  </td>
-                  <td className="py-2.5 px-3">{fmtN(total.fatura)}</td>
-                  <td className="py-2.5 px-3">{fmtN(total.miktar)}</td>
-                  <td className="py-2.5 px-3">{fmtN(total.ziyaretci)}</td>
-                  <td className="py-2.5 px-3">%{ortDonusum.toFixed(1)}</td>
-                  <td className="py-2.5 px-3">{fmt(ortSepet)}</td>
-                  <td className="py-2.5 px-3">{fmt(birimFiyat)}</td>
-                  <td className="py-2.5 px-3">%{brutKar.toFixed(1)}</td>
-                  <td className="py-2.5 px-3">—</td>
-                </tr>
-              </tfoot>
+              {/* Toplam satırı — sadece birden fazla mağaza varsa göster */}
+              {visibleStores.length > 1 && (
+                <tfoot className="bg-[#5d0024]/5 border-t-2 border-[#5d0024]/20 font-semibold text-[#2a0010]">
+                  <tr>
+                    <td className="py-2.5 px-3">TOPLAM / ORT.</td>
+                    <td className="py-2.5 px-3 text-[#5d0024]">{fmt(total.satis)}</td>
+                    <td className="py-2.5 px-3">
+                      <span className={hedefRenk(hedefPct)}>%{hedefPct.toFixed(1)}</span>
+                      {hedefBar(hedefPct)}
+                    </td>
+                    <td className="py-2.5 px-3">{fmtN(total.fatura)}</td>
+                    <td className="py-2.5 px-3">{fmtN(total.miktar)}</td>
+                    <td className="py-2.5 px-3">{fmtN(total.ziyaretci)}</td>
+                    <td className="py-2.5 px-3">%{ortDonusum.toFixed(1)}</td>
+                    <td className="py-2.5 px-3">{fmt(ortSepet)}</td>
+                    <td className="py-2.5 px-3">{fmt(birimFiyat)}</td>
+                    <td className="py-2.5 px-3">%{brutKar.toFixed(1)}</td>
+                    <td className="py-2.5 px-3">—</td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         )}

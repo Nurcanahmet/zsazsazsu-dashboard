@@ -165,8 +165,6 @@ function Consultants() {
                     <th className="text-left text-xs text-[#5d0024]/60 font-medium px-4 py-3">Satış Tutarı</th>
                     <th className="text-left text-xs text-[#5d0024]/60 font-medium px-4 py-3">Fatura Sayısı</th>
                     <th className="text-left text-xs text-[#5d0024]/60 font-medium px-4 py-3">Ort. Sepet</th>
-                    <th className="text-left text-xs text-[#5d0024]/60 font-medium px-4 py-3">Hedef</th>
-                    <th className="text-left text-xs text-[#5d0024]/60 font-medium px-4 py-3">Gerçekleşme</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -183,15 +181,6 @@ function Consultants() {
                       <td className="px-4 py-3 text-sm font-bold text-[#2a0010]">₺{c.salesAmount.toLocaleString('tr-TR')}</td>
                       <td className="px-4 py-3 text-sm text-[#2a0010]">{c.invoiceCount}</td>
                       <td className="px-4 py-3 text-sm text-[#2a0010]">₺{c.avgBasket.toLocaleString('tr-TR')}</td>
-                      <td className="px-4 py-3 text-sm text-[#e8b4c0]">₺{c.target.toLocaleString('tr-TR')}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-20 bg-gray-200 rounded-full h-2">
-                            <div className="bg-[#004f59] h-2 rounded-full" style={{ width: `${Math.min(c.achievement, 100)}%` }} />
-                          </div>
-                          <span className="text-xs font-medium text-[#2a0010]">%{c.achievement}</span>
-                        </div>
-                      </td>
                     </tr>
                   ))}
                 </tbody>
