@@ -10,7 +10,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
 
-const API = 'http://localhost:3001/api';
+const API = '/api';
 
 interface StoreData {
   StoreCode: string;

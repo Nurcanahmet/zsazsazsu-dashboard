@@ -11,8 +11,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 
-const API = 'http://localhost:3001/api';
-
+const API = '/api';
 function Consultants() {
   // ---------- KULLANICI BİLGİSİ ----------
   const userStr = localStorage.getItem('user');

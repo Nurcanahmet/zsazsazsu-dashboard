@@ -7,7 +7,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-const API = 'http://localhost:3001/api';
+const API = '/api';
 
 function Login() {
   const navigate = useNavigate();

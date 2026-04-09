@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 
-const API = 'http://localhost:3001/api';
+const API = '/api';
 
 type StoreRow = {
   StoreCode: string;
