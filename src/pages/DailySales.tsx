@@ -85,7 +85,7 @@ function DailySales() {
       ? userStoreCodes[0]
       : ''
   );
-  const fetchData = async (start: string, end: string) => {
+const fetchData = async (start: string, end: string) => {
     setLoading(true);
     setError(null);
     setSlowLoading(false);
@@ -101,19 +101,51 @@ function DailySales() {
     }, 15000);
 
     try {
-      const res = await fetch(
-        `${API}/dashboard/gunluk?startDate=${start}&endDate=${end}`,
-        { signal: controller.signal }
-      );
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => null);
-        throw new Error(errData?.error || `Sunucu hatası: ${res.status}`);
+      // Kullanıcı rolüne göre storeCode gönder
+      let storeParam = '';
+      if (userStoreCodes && userStoreCodes.length > 0) {
+        storeParam = `&storeCode=${userStoreCodes.join(',')}`;
       }
 
-      const result = await res.json();
-      console.log('🔥 BACKEND DEN GELEN VERI ÖRNEĞİ:', result?.[0]);
-      setAllStores(Array.isArray(result) ? result : []);
+      // PARALEL İKİ API ÇAĞRISI: Satış verisi + Hedef verisi
+      const [salesRes, hedefRes] = await Promise.all([
+        fetch(
+          `${API}/dashboard/gunluk?startDate=${start}&endDate=${end}${storeParam}`,
+          { signal: controller.signal }
+        ),
+        fetch(
+          `${API}/dashboard/hedefler?startDate=${start}&endDate=${end}${storeParam}`,
+          { signal: controller.signal }
+        ),
+      ]);
+
+      if (!salesRes.ok) {
+        const errData = await salesRes.json().catch(() => null);
+        throw new Error(errData?.error || `Sunucu hatası: ${salesRes.status}`);
+      }
+
+      const salesData = await salesRes.json();
+      const hedefData = hedefRes.ok ? await hedefRes.json() : [];
+
+      // Hedefleri mağaza koduna göre map'e koy (hızlı arama için)
+      const hedefMap: Record<string, number> = {};
+      hedefData.forEach((h: any) => {
+        hedefMap[h.StoreCode] = h.GunlukHedef || 0;
+      });
+
+      // Satış verisine hedefleri ekle
+      const enrichedData = (Array.isArray(salesData) ? salesData : []).map((store: any) => {
+        const hedef = hedefMap[store.StoreCode] || 0;
+        const satis = store.SATISVH || 0;
+        return {
+          ...store,
+          GünlükHedef: hedef,
+          HedefGerçekleşenYüzde: hedef > 0 ? (satis / hedef) * 100 : 0,
+        };
+      });
+
+      console.log('🔥 BACKEND DEN GELEN VERI ÖRNEĞİ:', enrichedData?.[0]);
+      setAllStores(enrichedData);
     } catch (err: any) {
       if (err.name === 'AbortError') {
         setError('İstek zaman aşımına uğradı. Lütfen tekrar deneyin.');
@@ -128,7 +160,6 @@ function DailySales() {
       setSlowLoading(false);
     }
   };
-
   useEffect(() => {
     fetchData(startDate, endDate);
   }, []);
@@ -144,24 +175,31 @@ function DailySales() {
   const getDisplayData = (): DisplayData => {
     if (allStores.length === 0) return emptyData;
 
-    if (selectedStore) {
+  if (selectedStore) {
       const store = allStores.find((s) => s.StoreCode === selectedStore);
       if (!store) return emptyData;
 
+      // Eksik kolonları frontend'de hesapla
+      const satis = store.SATISVH || 0;
+      const miktar = store.Qty1 || 0;
+      const fatura = store['Fatura Sayısı'] || 0;
+      const ziyaretci = store['Giren Kişi Sayısı'] || 0;
+      const kar = store.Kar || 0;
+
       return {
-        toplamSatis: store.SATISVH || 0,
-        magazaGirenKisi: store['Giren Kişi Sayısı'] || 0,
-        ortDonusum: store['Dönüşüm Oranı'] || 0,
-        toplamMiktar: store.Qty1 || 0,
+        toplamSatis: satis,
+        magazaGirenKisi: ziyaretci,
+        ortDonusum: ziyaretci > 0 ? (fatura / ziyaretci) * 100 : 0,
+        toplamMiktar: miktar,
         hedefGerclesme: store.HedefGerçekleşenYüzde || 0,
-        ortBrutKar: (store['Brüt KAR %'] || 0) * 100,
-        birimFiyat: store.BirimFiyatı || 0,
-        sepetTutar: store.SepetBüyüklüğüTutar || 0,
-        sepetAdet: store.SepetBüyüklüğüAdet || 0,
+        ortBrutKar: satis > 0 ? (kar / satis) * 100 : 0,
+        birimFiyat: miktar > 0 ? satis / miktar : 0,
+        sepetTutar: fatura > 0 ? satis / fatura : 0,
+        sepetAdet: fatura > 0 ? miktar / fatura : 0,
         hedef: store['GünlükHedef'] || 0,
         gecenYilSatis: store['LFL Satış (VH)'] || 0,
         yillikDegisim: store['LFL Satış (VH) % Değişim'] || 0,
-        faturaSayisi: store['Fatura Sayısı'] || 0,
+        faturaSayisi: fatura,
       };
     }
 

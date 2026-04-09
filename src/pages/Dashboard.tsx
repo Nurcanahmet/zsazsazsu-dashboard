@@ -101,20 +101,60 @@ export default function Dashboard() {
   const [sortKey, setSortKey] = useState<keyof StoreRow>('SATISVH');
   const [sortAsc, setSortAsc] = useState(false);
 
-  const fetchData = useCallback(async (start: string, end: string) => {
+const fetchData = useCallback(async (start: string, end: string) => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`${API}/dashboard/gunluk?startDate=${start}&endDate=${end}`);
-      if (!res.ok) throw new Error('API hatası');
-      const data = await res.json();
-      setStores(Array.isArray(data) ? data : data.stores ?? []);
+      // Kullanıcı rolüne göre storeCode gönder
+      let storeParam = '';
+      if (userStoreCodes && userStoreCodes.length > 0) {
+        storeParam = `&storeCode=${userStoreCodes.join(',')}`;
+      }
+
+      // PARALEL İKİ API ÇAĞRISI: Satış verisi + Hedef verisi
+      const [salesRes, hedefRes] = await Promise.all([
+        fetch(`${API}/dashboard/gunluk?startDate=${start}&endDate=${end}${storeParam}`),
+        fetch(`${API}/dashboard/hedefler?startDate=${start}&endDate=${end}${storeParam}`),
+      ]);
+
+      if (!salesRes.ok) throw new Error('API hatası');
+
+      const salesData = await salesRes.json();
+      const hedefData = hedefRes.ok ? await hedefRes.json() : [];
+
+      // Hedefleri mağaza koduna göre map'e koy
+      const hedefMap: Record<string, number> = {};
+      hedefData.forEach((h: any) => {
+        hedefMap[h.StoreCode] = h.GunlukHedef || 0;
+      });
+
+      // Satış verisine hedef ve hesaplanmış alanları ekle
+      const rawStores = Array.isArray(salesData) ? salesData : salesData.stores ?? [];
+      const enriched = rawStores.map((s: any) => {
+        const hedef = hedefMap[s.StoreCode] || 0;
+        const satis = s.SATISVH || 0;
+        const miktar = s.Qty1 || 0;
+        const fatura = s['Fatura Sayısı'] || 0;
+        const ziyaretci = s['Giren Kişi Sayısı'] || 0;
+
+        return {
+          ...s,
+          GünlükHedef: hedef,
+          HedefGerçekleşenYüzde: hedef > 0 ? (satis / hedef) * 100 : 0,
+          'Dönüşüm Oranı': ziyaretci > 0 ? (fatura / ziyaretci) * 100 : 0,
+          BirimFiyatı: miktar > 0 ? satis / miktar : 0,
+          SepetBüyüklügüTutar: fatura > 0 ? satis / fatura : 0,
+          SepetBüyüklügüAdet: fatura > 0 ? miktar / fatura : 0,
+        };
+      });
+
+      setStores(enriched);
     } catch (e: any) {
       setError(e.message);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [userStoreCodes]);
 
   useEffect(() => {
     fetchData(startDate, endDate);

@@ -83,7 +83,7 @@ function MonthlySales() {
 
   // ---------- VERİ ÇEKME ----------
   // Seçilen ayın 1. günü ile son gününü hesapla, procedure'e gönder
-  const fetchData = async (year: number, month: number) => {
+const fetchData = async (year: number, month: number) => {
     setLoading(true);
     setError(null);
 
@@ -93,18 +93,55 @@ function MonthlySales() {
     const lastDay = new Date(year, month, 0).getDate();
     const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
-    try {
-      const res = await fetch(
-        `${API}/dashboard/gunluk?startDate=${startDate}&endDate=${endDate}`
-      );
+    // Kullanıcı rolüne göre storeCode gönder
+    let storeParam = '';
+    if (userStoreCodes && userStoreCodes.length > 0) {
+      storeParam = `&storeCode=${userStoreCodes.join(',')}`;
+    }
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => null);
-        throw new Error(errData?.error || `Sunucu hatası: ${res.status}`);
+    try {
+      // PARALEL İKİ API ÇAĞRISI: Satış verisi (günlük procedure) + Hedef verisi
+      const [salesRes, hedefRes] = await Promise.all([
+        fetch(`${API}/dashboard/gunluk?startDate=${startDate}&endDate=${endDate}${storeParam}`),
+        fetch(`${API}/dashboard/hedefler?startDate=${startDate}&endDate=${endDate}${storeParam}`),
+      ]);
+
+      if (!salesRes.ok) {
+        const errData = await salesRes.json().catch(() => null);
+        throw new Error(errData?.error || `Sunucu hatası: ${salesRes.status}`);
       }
 
-      const result = await res.json();
-      setAllStores(Array.isArray(result) ? result : []);
+      const salesData = await salesRes.json();
+      const hedefData = hedefRes.ok ? await hedefRes.json() : [];
+
+      // Hedefleri mağaza koduna göre map'e koy
+      const hedefMap: Record<string, number> = {};
+      hedefData.forEach((h: any) => {
+        hedefMap[h.StoreCode] = h.GunlukHedef || 0;
+      });
+
+      // Satış verisine hedef ve hesaplanmış alanları ekle
+      const enriched = (Array.isArray(salesData) ? salesData : []).map((store: any) => {
+        const hedef = hedefMap[store.StoreCode] || 0;
+        const satis = store.SATISVH || 0;
+        const miktar = store.Qty1 || 0;
+        const fatura = store['Fatura Sayısı'] || 0;
+        const ziyaretci = store['Giren Kişi Sayısı'] || 0;
+        const kar = store.Kar || 0;
+
+        return {
+          ...store,
+          GünlükHedef: hedef,
+          HedefGerçekleşenYüzde: hedef > 0 ? (satis / hedef) * 100 : 0,
+          'Dönüşüm Oranı': ziyaretci > 0 ? (fatura / ziyaretci) * 100 : 0,
+          BirimFiyatı: miktar > 0 ? satis / miktar : 0,
+          SepetBüyüklüğüTutar: fatura > 0 ? satis / fatura : 0,
+          SepetBüyüklüğüAdet: fatura > 0 ? miktar / fatura : 0,
+          ortBrutKar_calc: satis > 0 ? (kar / satis) * 100 : 0,
+        };
+      });
+
+      setAllStores(enriched);
     } catch (err: any) {
       setError(err.message || 'Veri alınamadı');
       setAllStores([]);
@@ -112,7 +149,6 @@ function MonthlySales() {
       setLoading(false);
     }
   };
-
   useEffect(() => {
     fetchData(selectedYear, selectedMonth);
   }, [selectedYear, selectedMonth]);
@@ -135,8 +171,7 @@ function MonthlySales() {
         ortDonusum: store['Dönüşüm Oranı'] || 0,
         toplamMiktar: store.Qty1 || 0,
         hedefGerclesme: store.HedefGerçekleşenYüzde || 0,
-        ortBrutKar: (store['Brüt KAR %'] || 0) * 100,
-        birimFiyat: store.BirimFiyatı || 0,
+        ortBrutKar: (store as any).ortBrutKar_calc || (store['Brüt KAR %'] || 0) * 100,        birimFiyat: store.BirimFiyatı || 0,
         sepetTutar: store.SepetBüyüklüğüTutar || 0,
         sepetAdet: store.SepetBüyüklüğüAdet || 0,
         hedef: store.GünlükHedef || 0,
