@@ -13,6 +13,7 @@ interface User {
   role: 'admin' | 'super_user' | 'store';
   storeCodes: string[] | null;
   allowedPages: string[];
+  password?: string;
 }
 
 function UserManagement() {

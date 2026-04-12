@@ -12,6 +12,7 @@ interface User {
   role: 'admin' | 'super_user' | 'store';
   storeCodes: string[] | null;
   allowedPages: string[];
+  password?: string;
 }
 
 interface Store {
@@ -35,7 +36,7 @@ function UserModal({ user, currentUserEmail, onClose }: Props) {
   const isEdit = user !== null;
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
-  const [password, setPassword] = useState('');
+  const [password, setPassword] = useState(user?.password || '');
   const [role, setRole] = useState<'admin' | 'super_user' | 'store'>(user?.role || 'store');
   const [storeCodes, setStoreCodes] = useState<string[]>(user?.storeCodes || []);
   const [allowedPages, setAllowedPages] = useState<string[]>(
@@ -46,16 +47,35 @@ function UserModal({ user, currentUserEmail, onClose }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   // Mağaza listesini çek
-  useEffect(() => {
-    fetch(`${API}/admin/stores`, {
-      headers: { 'x-admin-email': currentUserEmail },
-    })
-      .then(r => r.json())
-      .then(data => {
-        if (data.success) setAllStores(data.stores);
-      })
-      .catch(() => {});
-  }, [currentUserEmail]);
+const [storesLoading, setStoresLoading] = useState(true);
+const [storesError, setStoresError] = useState<string | null>(null);
+
+useEffect(() => {
+  const fetchStores = async () => {
+    try {
+      setStoresLoading(true);
+      setStoresError(null);
+
+      const res = await fetch(`${API}/admin/stores`, {
+        headers: { 'x-admin-email': currentUserEmail },
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setAllStores(data.stores || []);
+      } else {
+        setStoresError(data.error || 'Mağazalar alınamadı');
+      }
+    } catch (err: any) {
+      setStoresError(err.message || 'Sunucu hatası');
+    } finally {
+      setStoresLoading(false);
+    }
+  };
+
+  fetchStores();
+}, [currentUserEmail]);
 
   const toggleStore = (code: string) => {
     setStoreCodes(prev =>
@@ -171,8 +191,8 @@ function UserModal({ user, currentUserEmail, onClose }: Props) {
 
           {/* Şifre */}
           <div>
-            <label className="block text-sm font-medium text-[#2a0010] mb-1">
-              Şifre {isEdit && <span className="text-gray-400 text-xs">(boş bırakırsanız değişmez)</span>}
+           <label className="block text-sm font-medium text-[#2a0010] mb-1">
+              Şifre
             </label>
             <input
               type="text"
@@ -198,28 +218,61 @@ function UserModal({ user, currentUserEmail, onClose }: Props) {
           </div>
 
           {/* Mağaza seçimi (admin değilse) */}
+{/* Mağaza seçimi (admin değilse) */}
           {role !== 'admin' && (
             <div>
               <label className="block text-sm font-medium text-[#2a0010] mb-2">
-                Mağazalar ({storeCodes.length} seçili)
+                Mağazalar
               </label>
-              <div className="border border-gray-300 rounded-lg p-3 max-h-48 overflow-y-auto grid grid-cols-2 gap-2">
-                {allStores.length === 0 && (
-                  <p className="text-sm text-gray-400 col-span-2">Mağazalar yükleniyor...</p>
-                )}
-                {allStores.map((s) => (
-                  <label key={s.StoreCode} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-gray-50 p-1 rounded">
-                    <input
-                      type="checkbox"
-                      checked={storeCodes.includes(s.StoreCode)}
-                      onChange={() => toggleStore(s.StoreCode)}
-                      className="accent-[#5d0024]"
-                    />
-                    <span className="text-gray-500">{s.StoreCode}</span>
-                    <span className="truncate">{s.StoreDescription}</span>
-                  </label>
-                ))}
-              </div>
+
+              {/* Dropdown - mağaza ekle */}
+              <select
+                value=""
+                onChange={(e) => {
+                  if (e.target.value && !storeCodes.includes(e.target.value)) {
+                    toggleStore(e.target.value);
+                  }
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:border-[#5d0024]"
+              >
+                <option value="">+ Mağaza ekle...</option>
+                {allStores
+                  .filter((s) => !storeCodes.includes(s.StoreCode))
+                  .map((s) => (
+                    <option key={s.StoreCode} value={s.StoreCode}>
+                      {s.StoreCode} — {s.StoreDescription}
+                    </option>
+                  ))}
+              </select>
+
+              {/* Seçilen mağazaları etiket olarak göster */}
+              {storeCodes.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {storeCodes.map((code) => {
+                    const store = allStores.find((s) => s.StoreCode === code);
+                    return (
+                      <span
+                        key={code}
+                        className="inline-flex items-center gap-1 px-2 py-1 bg-[#5d0024]/10 text-[#5d0024] rounded-full text-xs font-medium"
+                      >
+                        {code} — {store?.StoreDescription || ''}
+                        <button
+                          type="button"
+                          onClick={() => toggleStore(code)}
+                          className="ml-1 hover:bg-[#5d0024]/20 rounded-full w-4 h-4 flex items-center justify-center"
+                          title="Kaldır"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+
+              <p className="text-xs text-gray-400 mt-1">
+                {storeCodes.length} mağaza seçili
+              </p>
             </div>
           )}
 

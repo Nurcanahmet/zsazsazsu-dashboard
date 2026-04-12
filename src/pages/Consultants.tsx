@@ -164,6 +164,8 @@ function Consultants() {
                     <th className="text-left text-xs text-[#5d0024]/60 font-medium px-4 py-3">Satış Tutarı</th>
                     <th className="text-left text-xs text-[#5d0024]/60 font-medium px-4 py-3">Fatura Sayısı</th>
                     <th className="text-left text-xs text-[#5d0024]/60 font-medium px-4 py-3">Ort. Sepet</th>
+                    <th className="text-left text-xs text-[#5d0024]/60 font-medium px-4 py-3">İade Adedi</th>
+                    <th className="text-left text-xs text-[#5d0024]/60 font-medium px-4 py-3">İade Tutarı (VH)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -180,6 +182,12 @@ function Consultants() {
                       <td className="px-4 py-3 text-sm font-bold text-[#2a0010]">₺{c.salesAmount.toLocaleString('tr-TR')}</td>
                       <td className="px-4 py-3 text-sm text-[#2a0010]">{c.invoiceCount}</td>
                       <td className="px-4 py-3 text-sm text-[#2a0010]">₺{c.avgBasket.toLocaleString('tr-TR')}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-[#e41e2d]">
+                        {c.returnQty > 0 ? c.returnQty : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm font-medium text-[#e41e2d]">
+                        {c.returnAmount > 0 ? `₺${c.returnAmount.toLocaleString('tr-TR')}` : '—'}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

@@ -23,6 +23,8 @@ function Sidebar() {
   const user = userStr ? JSON.parse(userStr) : null;
   const displayName = user?.name || 'Misafir';
   const userRole = user?.role || 'store';
+  const userAllowedPages: string[] = user?.allowedPages || ['dashboard', 'daily', 'monthly', 'consultants'];
+  
 
   // Kullanıcının baş harflerini al (avatar için)
   const initials = displayName
@@ -49,13 +51,13 @@ function Sidebar() {
 
   // ---------- MENÜ ÖĞELERİ ----------
   const menuItems = [
-    { path: "/", label: "Genel Bakış", icon: LayoutDashboard },
+    { path: "/", label: "Genel Bakış", icon: LayoutDashboard, pageKey: "dashboard" },
   ];
 
-  const storeMenuItems = [
-    { path: "/gunluk-satis", label: "Günlük Satış", icon: CalendarDays },
-    { path: "/aylik-satis", label: "Aylık Satış", icon: BarChart3 },
-    { path: "/danismanlar", label: "Satış Danışmanları", icon: Users },
+const storeMenuItems = [
+    { path: "/gunluk-satis", label: "Günlük Satış", icon: CalendarDays, pageKey: "daily" },
+    { path: "/aylik-satis", label: "Aylık Satış", icon: BarChart3, pageKey: "monthly" },
+    { path: "/danismanlar", label: "Satış Danışmanları", icon: Users, pageKey: "consultants" },
   ];
 
   // Admin için ek menü
@@ -105,7 +107,7 @@ function Sidebar() {
       {/* ===== MENÜ LİNKLERİ ===== */}
       <nav className="flex-1 px-3 py-4 overflow-y-auto">
         {/* Ana menü */}
-        {menuItems.map((item) => (
+        {menuItems.filter(item => userAllowedPages.includes(item.pageKey)).map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
@@ -135,7 +137,7 @@ function Sidebar() {
         <p className="text-[10px] text-[#e8b4c0]/50 uppercase tracking-widest mt-6 mb-2 px-3 font-semibold">
           Mağaza
         </p>
-        {storeMenuItems.map((item) => (
+        {storeMenuItems.filter(item => userAllowedPages.includes(item.pageKey)).map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
