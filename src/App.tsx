@@ -5,6 +5,7 @@
 // Dashboard sayfaları Layout içinde (Sidebar ile) gösterilir.
 // ProtectedRoute: giriş yapmamış kullanıcıları login sayfasına yönlendirir.
 
+import UserManagement from './pages/admin/UserManagement';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import Login from './pages/Login';
@@ -12,6 +13,7 @@ import Dashboard from './pages/Dashboard';
 import DailySales from './pages/DailySales';
 import MonthlySales from './pages/MonthlySales';
 import Consultants from './pages/Consultants';
+
 
 // ============================================
 // PROTECTED ROUTE — Korumalı Sayfa Bileşeni
@@ -50,6 +52,14 @@ function App() {
           <Route path="/gunluk-satis" element={<DailySales />} />
           <Route path="/aylik-satis" element={<MonthlySales />} />
           <Route path="/danismanlar" element={<Consultants />} />
+          <Route 
+  path="/admin/kullanicilar" 
+  element={
+    JSON.parse(localStorage.getItem('user') || '{}').role === 'admin' 
+      ? <UserManagement /> 
+      : <Navigate to="/" replace />
+  } 
+/>
         </Route>
       </Routes>
     </BrowserRouter>

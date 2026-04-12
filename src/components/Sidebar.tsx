@@ -11,6 +11,8 @@ import {
   LogOut,
   Store,
   ShieldCheck,
+  Settings,
+  UserCog,
 } from "lucide-react";
 
 function Sidebar() {
@@ -54,6 +56,11 @@ function Sidebar() {
     { path: "/gunluk-satis", label: "Günlük Satış", icon: CalendarDays },
     { path: "/aylik-satis", label: "Aylık Satış", icon: BarChart3 },
     { path: "/danismanlar", label: "Satış Danışmanları", icon: Users },
+  ];
+
+  // Admin için ek menü
+  const adminMenuItems = [
+    { path: "/admin/kullanicilar", label: "Kullanıcı Yönetimi", icon: UserCog },
   ];
 
   return (
@@ -151,6 +158,40 @@ function Sidebar() {
             )}
           </NavLink>
         ))}
+
+        {/* Genel Ayarlar - sadece admin */}
+        {userRole === 'admin' && (
+          <>
+            <p className="text-[10px] text-[#e8b4c0]/50 uppercase tracking-widest mt-6 mb-2 px-3 font-semibold flex items-center gap-1">
+              <Settings className="w-3 h-3" />
+              Genel Ayarlar
+            </p>
+            {adminMenuItems.map((item) => (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                className={({ isActive }) =>
+                  `group relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-1 transition-all duration-200 ${
+                    isActive
+                      ? "bg-white/15 text-white font-medium shadow-lg"
+                      : "text-[#e8b4c0] hover:bg-white/10 hover:text-white"
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    {isActive && (
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[#e8b4c0] rounded-r-full" />
+                    )}
+                    <item.icon className={`w-[18px] h-[18px] ${isActive ? 'text-[#e8b4c0]' : ''}`} />
+                    <span>{item.label}</span>
+                  </>
+                )}
+              </NavLink>
+            ))}
+          </>
+        )}
+        
       </nav>
 
       {/* ===== ÇIKIŞ BUTONU ===== */}
