@@ -10,6 +10,7 @@ import { useState, useEffect } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
+import { Award } from 'lucide-react';
 
 const API = '/api';
 function Consultants() {
@@ -25,6 +26,7 @@ function Consultants() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [consultants, setConsultants] = useState<any[]>([]);
+  const [salespersons, setSalespersons] = useState<any[]>([]);
   const [selectedConsultant, setSelectedConsultant] = useState<string>('');
   const [selectedStore, setSelectedStore] = useState<string>(
     userRole === 'store' && userStoreCodes && userStoreCodes.length > 0
@@ -63,33 +65,57 @@ function Consultants() {
     }
   };
 
+  // ---------- DANIŞMAN LİSTESİ (sp_Akinon_SalesPerson) ----------
+  const fetchSalespersons = async () => {
+    try {
+      let storeParam = '';
+      if (userStoreCodes && userStoreCodes.length > 0) {
+        storeParam = `?storeCode=${userStoreCodes.join(',')}`;
+      }
+      const res = await fetch(`${API}/salespersons${storeParam}`);
+      if (res.ok) {
+        const result = await res.json();
+        setSalespersons(Array.isArray(result) ? result : []);
+      }
+    } catch (err) {
+      console.error('Danışman listesi alınamadı:', err);
+    }
+  };
+
   useEffect(() => {
     fetchData(startDate, endDate);
+    fetchSalespersons();
   }, []);
 
   const handleFilter = () => {
     fetchData(startDate, endDate);
   };
 
-  // Tüm mağazaları danışmanlardan türet (varsayım: SalespersonCode başında M001, M002 var)
-  // Backend'den gelmiyorsa users veya başka kaynak gerekir. Şimdilik consultants içinden alalım.
-  // Mağaza dropdown'u için liste:
-  // - admin: tüm mağazaları consultants'tan türet
-  // - super_user: kendi izinli mağazaları
-  // - store: sadece kendi mağazası (zaten otomatik seçili)
-  const availableStores =
-    userRole === 'admin'
-      ? Array.from(new Set(consultants.map((c: any) => c.storeCode).filter(Boolean))).sort()
-      : userStoreCodes || [];
+  // Mağaza listesi (sp_Akinon_SalesPerson'dan)
+  const storeDescMap = new Map<string, string>();
+  salespersons.forEach((s: any) => {
+    if (s.storeCode && s.storeDescription) {
+      storeDescMap.set(s.storeCode, s.storeDescription);
+    }
+  });
+  const availableStores = Array.from(storeDescMap.keys()).sort();
+
+  // Seçili mağazaya ait danışman listesi (sp_Akinon_SalesPerson'dan)
+  const availableConsultants = salespersons
+    .filter((s: any) => !selectedStore || s.storeCode === selectedStore)
+    .map((s: any) => s.name)
+    .filter((name: string, i: number, arr: string[]) => arr.indexOf(name) === i)
+    .sort((a: string, b: string) => a.localeCompare(b, 'tr'));
+
   // Seçili danışman varsa sadece onu göster, yoksa tümünü
- // Hem mağaza hem danışman filtresine göre filtrele
   // Hem mağaza hem danışman filtresine göre filtrele
- const displayConsultants = consultants.filter((c: any) => {
+  // Hem mağaza hem danışman filtresine göre filtrele
+  const displayConsultants = consultants.filter((c: any) => {
     const matchStore = !selectedStore || c.storeCode === selectedStore;
     const matchConsultant = !selectedConsultant || c.name === selectedConsultant;
     return matchStore && matchConsultant;
   });
-  const bestConsultant = consultants.length > 0 ? consultants[0] : null;
+  const bestConsultant = displayConsultants.length > 0 ? displayConsultants[0] : null;
 
   const salesChartData = displayConsultants.map(c => ({
     name: c.name.split(' ')[0],
@@ -148,11 +174,10 @@ function Consultants() {
               onChange={(e) => setSelectedConsultant(e.target.value)}
               className="bg-[#5d0024] text-[#d7d2cb] border border-white/20 rounded-lg px-3 py-1.5 text-sm outline-none min-w-[200px]"
             >
-              {consultants
-                .filter((c: any) => !selectedStore || c.storeCode === selectedStore)
-                .map((c: any) => (
-                  <option key={c.name} value={c.name}>{c.name}</option>
-                ))}
+              <option value="">Tüm Danışmanlar</option>
+              {availableConsultants.map((name: string) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
             </select>
           </div>
 
@@ -161,17 +186,18 @@ function Consultants() {
             <div>
               <label className="text-xs text-[#5d0024]/60 block mb-1">Mağaza</label>
               <select
-              value={selectedConsultant}
-              onChange={(e) => setSelectedConsultant(e.target.value)}
-              className="bg-[#5d0024] text-[#d7d2cb] border border-white/20 rounded-lg px-3 py-1.5 text-sm outline-none min-w-[200px]"
-            >
-              <option value="">Tüm Danışmanlar</option>
-              {consultants
-                .filter((c: any) => !selectedStore || c.storeCode === selectedStore)
-                .map((c: any) => (
-                  <option key={c.name} value={c.name}>{c.name}</option>
+                value={selectedStore}
+                onChange={(e) => {
+                  setSelectedStore(e.target.value);
+                  setSelectedConsultant('');
+                }}
+                className="bg-[#5d0024] text-[#d7d2cb] border border-white/20 rounded-lg px-3 py-1.5 text-sm outline-none min-w-[200px]"
+              >
+                <option value="">Tüm Mağazalar</option>
+                {availableStores.map((code: string) => (
+                  <option key={code} value={code}>{storeDescMap.get(code) || code}</option>
                 ))}
-            </select>
+              </select>
             </div>
           )}
         </div>
@@ -197,7 +223,7 @@ function Consultants() {
             <div className="bg-[#5d0024] rounded-xl p-5 mb-6">
               <p className="text-[#e8b4c0] text-sm">Seçilen dönemin en iyi danışmanı</p>
               <div className="flex items-center gap-4 mt-2">
-                <span className="text-3xl">🏆</span>
+                <Award size={36} className="text-[#c4a11b]" />
                 <div>
                   <h2 className="text-white text-xl font-bold">{bestConsultant.name}</h2>
                   <p className="text-[#e8b4c0] text-sm">
@@ -228,13 +254,12 @@ function Consultants() {
                   </tr>
                 </thead>
                 <tbody>
-                  {displayConsultants.map((c: any) => (
+                  {displayConsultants.map((c: any, index: number) => (
                     <tr key={c.rank} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold ${
-                          c.rank <= 3 ? 'bg-[#e8b4c0]/30 text-[#5d0024]' : 'text-[#2a0010]'
-                        }`}>
-                          {c.rank}
+                        <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold ${index < 3 ? 'bg-[#e8b4c0]/30 text-[#5d0024]' : 'text-[#2a0010]'
+                          }`}>
+                          {index + 1}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm font-medium text-[#2a0010]">{c.name}</td>
@@ -257,28 +282,28 @@ function Consultants() {
           {/* ===== GRAFİKLER ===== */}
           {displayConsultants.length > 0 && (
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-white rounded-xl p-4 border border-gray-200">
-                <h3 className="text-sm font-medium text-[#5d0024] mb-4">Satış Tutarı Karşılaştırması</h3>
-                <ResponsiveContainer width="100%" height={200}>
+              <div className="bg-white rounded-xl p-3 border border-gray-200">
+                <h3 className="text-sm font-medium text-[#5d0024] mb-2">Satış Tutarı Karşılaştırması</h3>
+                <ResponsiveContainer width="100%" height={180}>
                   <BarChart data={salesChartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                     <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                     <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `₺${v / 1000}K`} />
                     <Tooltip formatter={(v: any) => [`₺${Number(v).toLocaleString('tr-TR')}`, 'Satış']} />
-                    <Bar dataKey="value" fill="#5d0024" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="value" fill="#5d0024" radius={[4, 4, 0, 0]} maxBarSize={40} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
 
-              <div className="bg-white rounded-xl p-4 border border-gray-200">
-                <h3 className="text-sm font-medium text-[#5d0024] mb-4">Fatura Sayısı Karşılaştırması</h3>
-                <ResponsiveContainer width="100%" height={200}>
+              <div className="bg-white rounded-xl p-3 border border-gray-200">
+                <h3 className="text-sm font-medium text-[#5d0024] mb-2">Fatura Sayısı Karşılaştırması</h3>
+                <ResponsiveContainer width="100%" height={180}>
                   <BarChart data={invoiceChartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                     <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                     <YAxis tick={{ fontSize: 12 }} />
                     <Tooltip formatter={(v: any) => [`${v} adet`, 'Fatura']} />
-                    <Bar dataKey="value" fill="#c4a11b" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="value" fill="#c4a11b" radius={[4, 4, 0, 0]} maxBarSize={40} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
