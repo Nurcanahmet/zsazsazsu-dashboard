@@ -65,16 +65,15 @@ function MonthlySales() {
 
   // ---------- STATE ----------
   const now = new Date();
-  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(() => Number(sessionStorage.getItem('monthlySales_year')) || now.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(() => Number(sessionStorage.getItem('monthlySales_month')) || now.getMonth() + 1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [allStores, setAllStores] = useState<StoreData[]>([]);
-  const [selectedStore, setSelectedStore] = useState<string>(
-    userRole === 'store' && userStoreCodes && userStoreCodes.length > 0
-      ? userStoreCodes[0]
-      : ''
-  );
+  const [selectedStore, setSelectedStore] = useState<string>(() => {
+    if (userRole === 'store' && userStoreCodes && userStoreCodes.length > 0) return userStoreCodes[0];
+    return sessionStorage.getItem('monthlySales_selectedStore') || '';
+  });
 
   const months = [
     'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
@@ -232,7 +231,7 @@ const fetchData = async (year: number, month: number) => {
               <label className="text-xs text-[#5d0024]/60 block mb-1">Mağaza</label>
               <select
                 value={selectedStore}
-                onChange={(e) => setSelectedStore(e.target.value)}
+                onChange={(e) => { sessionStorage.setItem('monthlySales_selectedStore', e.target.value); setSelectedStore(e.target.value); }}
                 className="bg-[#5d0024] text-[#d7d2cb] border border-white/20 rounded-lg px-3 py-1.5 text-sm outline-none min-w-[200px]"
               >
                 {userRole === 'admin' && (
@@ -251,7 +250,7 @@ const fetchData = async (year: number, month: number) => {
             <label className="text-xs text-[#5d0024]/60 block mb-1">Yıl</label>
             <select
               value={selectedYear}
-              onChange={(e) => setSelectedYear(Number(e.target.value))}
+              onChange={(e) => { sessionStorage.setItem('monthlySales_year', e.target.value); setSelectedYear(Number(e.target.value)); }}
               className="bg-[#5d0024] text-[#d7d2cb] border border-white/20 rounded-lg px-3 py-1.5 text-sm outline-none"
             >
               <option value={2024}>2024</option>
@@ -263,7 +262,7 @@ const fetchData = async (year: number, month: number) => {
             <label className="text-xs text-[#5d0024]/60 block mb-1">Ay</label>
             <select
               value={selectedMonth}
-              onChange={(e) => setSelectedMonth(Number(e.target.value))}
+              onChange={(e) => { sessionStorage.setItem('monthlySales_month', e.target.value); setSelectedMonth(Number(e.target.value)); }}
               className="bg-[#5d0024] text-[#d7d2cb] border border-white/20 rounded-lg px-3 py-1.5 text-sm outline-none"
             >
               {months.map((m, i) => (

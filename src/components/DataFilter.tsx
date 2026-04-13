@@ -30,8 +30,13 @@ function DateFilter({ onFilter }: DateFilterProps) {
         <label className="text-xs text-[#d7d2cb] block mb-1">Başlangıç</label>
         <input
           type="date"
+          max="2099-12-31"
           value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
+          onChange={(e) => {
+            const val = e.target.value;
+            const year = val.split('-')[0];
+            if (year.length <= 4) setStartDate(val);
+          }}
           className="bg-white/15 text-[#d7d2cb] border border-white/20 rounded-lg px-3 py-1.5 text-sm outline-none"
         />
       </div>
@@ -41,8 +46,13 @@ function DateFilter({ onFilter }: DateFilterProps) {
         <label className="text-xs text-[#d7d2cb] block mb-1">Bitiş</label>
         <input
           type="date"
+          max="2099-12-31"
           value={endDate}
-          onChange={(e) => setEndDate(e.target.value)}
+          onChange={(e) => {
+            const val = e.target.value;
+            const year = val.split('-')[0];
+            if (year.length <= 4) setEndDate(val);
+          }}
           className="bg-white/15 text-[#d7d2cb] border border-white/20 rounded-lg px-3 py-1.5 text-sm outline-none"
         />
       </div>

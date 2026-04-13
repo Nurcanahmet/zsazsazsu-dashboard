@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Settings,
   UserCog,
+  Building2,
 } from "lucide-react";
 
 function Sidebar() {
@@ -81,8 +82,14 @@ const storeMenuItems = [
       <div className="px-4 py-4 border-b border-white/10">
         <div className="flex items-center gap-3">
           {/* Avatar */}
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#e8b4c0] to-[#c4a11b] flex items-center justify-center text-[#2a0010] font-bold text-sm flex-shrink-0">
-            {initials}
+          <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/20 shadow-inner flex items-center justify-center flex-shrink-0">
+            {userRole === 'admin' ? (
+              <ShieldCheck className="w-5 h-5 text-[#e8b4c0]" />
+            ) : userRole === 'super_user' ? (
+              <Building2 className="w-5 h-5 text-[#e8b4c0]" />
+            ) : (
+              <Store className="w-5 h-5 text-[#e8b4c0]" />
+            )}
           </div>
 
           {/* İsim + rol */}

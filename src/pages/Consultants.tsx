@@ -21,18 +21,19 @@ function Consultants() {
   const userStoreCodes: string[] | null = user?.storeCodes || null;
 
   // ---------- STATE ----------
-  const [startDate, setStartDate] = useState('2025-09-01');
-  const [endDate, setEndDate] = useState('2025-09-07');
+  const [startDate, setStartDate] = useState(() => sessionStorage.getItem('consultants_startDate') || '2025-09-01');
+  const [endDate, setEndDate] = useState(() => sessionStorage.getItem('consultants_endDate') || '2025-09-07');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [consultants, setConsultants] = useState<any[]>([]);
   const [salespersons, setSalespersons] = useState<any[]>([]);
-  const [selectedConsultant, setSelectedConsultant] = useState<string>('');
-  const [selectedStore, setSelectedStore] = useState<string>(
-    userRole === 'store' && userStoreCodes && userStoreCodes.length > 0
-      ? userStoreCodes[0]
-      : ''
+  const [selectedConsultant, setSelectedConsultant] = useState<string>(
+    () => sessionStorage.getItem('consultants_selectedConsultant') || ''
   );
+  const [selectedStore, setSelectedStore] = useState<string>(() => {
+    if (userRole === 'store' && userStoreCodes && userStoreCodes.length > 0) return userStoreCodes[0];
+    return sessionStorage.getItem('consultants_selectedStore') || '';
+  });
 
   // ---------- VERİ ÇEKME ----------
   const fetchData = async (start: string, end: string) => {
@@ -144,8 +145,13 @@ function Consultants() {
             <label className="text-xs text-[#5d0024]/60 block mb-1">Başlangıç</label>
             <input
               type="date"
+              max="2099-12-31"
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                const year = val.split('-')[0];
+                if (year.length <= 4) { setStartDate(val); sessionStorage.setItem('consultants_startDate', val); }
+              }}
               className="bg-[#5d0024] text-[#d7d2cb] border border-white/20 rounded-lg px-3 py-1.5 text-sm outline-none"
             />
           </div>
@@ -153,8 +159,13 @@ function Consultants() {
             <label className="text-xs text-[#5d0024]/60 block mb-1">Bitiş</label>
             <input
               type="date"
+              max="2099-12-31"
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                const year = val.split('-')[0];
+                if (year.length <= 4) { setEndDate(val); sessionStorage.setItem('consultants_endDate', val); }
+              }}
               className="bg-[#5d0024] text-[#d7d2cb] border border-white/20 rounded-lg px-3 py-1.5 text-sm outline-none"
             />
           </div>
@@ -171,7 +182,7 @@ function Consultants() {
             <label className="text-xs text-[#5d0024]/60 block mb-1">Danışman</label>
             <select
               value={selectedConsultant}
-              onChange={(e) => setSelectedConsultant(e.target.value)}
+              onChange={(e) => { setSelectedConsultant(e.target.value); sessionStorage.setItem('consultants_selectedConsultant', e.target.value); }}
               className="bg-[#5d0024] text-[#d7d2cb] border border-white/20 rounded-lg px-3 py-1.5 text-sm outline-none min-w-[200px]"
             >
               <option value="">Tüm Danışmanlar</option>
@@ -189,7 +200,9 @@ function Consultants() {
                 value={selectedStore}
                 onChange={(e) => {
                   setSelectedStore(e.target.value);
+                  sessionStorage.setItem('consultants_selectedStore', e.target.value);
                   setSelectedConsultant('');
+                  sessionStorage.removeItem('consultants_selectedConsultant');
                 }}
                 className="bg-[#5d0024] text-[#d7d2cb] border border-white/20 rounded-lg px-3 py-1.5 text-sm outline-none min-w-[200px]"
               >
@@ -285,9 +298,9 @@ function Consultants() {
               <div className="bg-white rounded-xl p-3 border border-gray-200">
                 <h3 className="text-sm font-medium text-[#5d0024] mb-2">Satış Tutarı Karşılaştırması</h3>
                 <ResponsiveContainer width="100%" height={180}>
-                  <BarChart data={salesChartData}>
+                  <BarChart data={salesChartData} margin={{ top: 5, right: 15, left: 15, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                    <XAxis dataKey="name" tick={{ fontSize: 12 }} padding={{ left: 15, right: 15 }} />
                     <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `₺${v / 1000}K`} />
                     <Tooltip formatter={(v: any) => [`₺${Number(v).toLocaleString('tr-TR')}`, 'Satış']} />
                     <Bar dataKey="value" fill="#5d0024" radius={[4, 4, 0, 0]} maxBarSize={40} />
@@ -298,9 +311,9 @@ function Consultants() {
               <div className="bg-white rounded-xl p-3 border border-gray-200">
                 <h3 className="text-sm font-medium text-[#5d0024] mb-2">Fatura Sayısı Karşılaştırması</h3>
                 <ResponsiveContainer width="100%" height={180}>
-                  <BarChart data={invoiceChartData}>
+                  <BarChart data={invoiceChartData} margin={{ top: 5, right: 15, left: 15, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                    <XAxis dataKey="name" tick={{ fontSize: 12 }} padding={{ left: 15, right: 15 }} />
                     <YAxis tick={{ fontSize: 12 }} />
                     <Tooltip formatter={(v: any) => [`${v} adet`, 'Fatura']} />
                     <Bar dataKey="value" fill="#c4a11b" radius={[4, 4, 0, 0]} maxBarSize={40} />

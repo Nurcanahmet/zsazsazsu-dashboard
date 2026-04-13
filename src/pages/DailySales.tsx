@@ -73,18 +73,17 @@ function DailySales() {
   // store rolü → sadece kendi mağazasını görebilir
   // super_user → sadece izinli mağazaları görebilir
   // admin → tümünü görebilir (storeCodes null)
-  const [startDate, setStartDate] = useState('2025-09-07');
-  const [endDate, setEndDate] = useState('2025-09-07');
+  const [startDate, setStartDate] = useState(() => sessionStorage.getItem('dailySales_startDate') || '2025-09-07');
+  const [endDate, setEndDate] = useState(() => sessionStorage.getItem('dailySales_endDate') || '2025-09-07');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [slowLoading, setSlowLoading] = useState(false);
   const [allStores, setAllStores] = useState<StoreData[]>([]);
 // Eğer store kullanıcısıysa otomatik olarak kendi mağazası seçili gelir
-  const [selectedStore, setSelectedStore] = useState<string>(
-    userRole === 'store' && userStoreCodes && userStoreCodes.length > 0
-      ? userStoreCodes[0]
-      : ''
-  );
+  const [selectedStore, setSelectedStore] = useState<string>(() => {
+    if (userRole === 'store' && userStoreCodes && userStoreCodes.length > 0) return userStoreCodes[0];
+    return sessionStorage.getItem('dailySales_selectedStore') || '';
+  });
 const fetchData = async (start: string, end: string) => {
     setLoading(true);
     setError(null);
@@ -252,7 +251,7 @@ const fetchData = async (start: string, end: string) => {
               <label className="text-xs text-[#5d0024]/60 block mb-1">Mağaza</label>
               <select
                 value={selectedStore}
-                onChange={(e) => setSelectedStore(e.target.value)}
+                onChange={(e) => { sessionStorage.setItem('dailySales_selectedStore', e.target.value); setSelectedStore(e.target.value); }}
                 className="bg-[#5d0024] text-[#d7d2cb] border border-white/20 rounded-lg px-3 py-1.5 text-sm outline-none min-w-[200px]"
               >
                 {userRole === 'admin' && (
@@ -271,8 +270,13 @@ const fetchData = async (start: string, end: string) => {
             <label className="text-xs text-[#5d0024]/60 block mb-1">Başlangıç</label>
             <input
               type="date"
+              max="2099-12-31"
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                const year = val.split('-')[0];
+                if (year.length <= 4) { sessionStorage.setItem('dailySales_startDate', val); setStartDate(val); }
+              }}
               className="bg-[#5d0024] text-[#d7d2cb] border border-white/20 rounded-lg px-3 py-1.5 text-sm outline-none"
             />
           </div>
@@ -281,8 +285,13 @@ const fetchData = async (start: string, end: string) => {
             <label className="text-xs text-[#5d0024]/60 block mb-1">Bitiş</label>
             <input
               type="date"
+              max="2099-12-31"
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                const year = val.split('-')[0];
+                if (year.length <= 4) { sessionStorage.setItem('dailySales_endDate', val); setEndDate(val); }
+              }}
               className="bg-[#5d0024] text-[#d7d2cb] border border-white/20 rounded-lg px-3 py-1.5 text-sm outline-none"
             />
           </div>

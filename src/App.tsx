@@ -33,6 +33,17 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const userStr = localStorage.getItem('user');
+  const user = userStr ? JSON.parse(userStr) : null;
+
+  if (!user || user.role !== 'admin') {
+    return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -52,14 +63,14 @@ function App() {
           <Route path="/gunluk-satis" element={<DailySales />} />
           <Route path="/aylik-satis" element={<MonthlySales />} />
           <Route path="/danismanlar" element={<Consultants />} />
-          <Route 
-  path="/admin/kullanicilar" 
-  element={
-    JSON.parse(localStorage.getItem('user') || '{}').role === 'admin' 
-      ? <UserManagement /> 
-      : <Navigate to="/" replace />
-  } 
-/>
+          <Route
+            path="/admin/kullanicilar"
+            element={
+              <AdminRoute>
+                <UserManagement />
+              </AdminRoute>
+            }
+          />
         </Route>
       </Routes>
     </BrowserRouter>

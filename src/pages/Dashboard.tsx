@@ -93,8 +93,8 @@ export default function Dashboard() {
   const userStoreCodes: string[] | null = user?.storeCodes || null;
 
   const today = new Date().toISOString().split('T')[0];
-  const [startDate, setStartDate] = useState(today);
-  const [endDate, setEndDate] = useState(today);
+  const [startDate, setStartDate] = useState(() => sessionStorage.getItem('dashboard_startDate') || today);
+  const [endDate, setEndDate] = useState(() => sessionStorage.getItem('dashboard_endDate') || today);
   const [loading, setLoading] = useState(false);
   const [stores, setStores] = useState<StoreRow[]>([]);
   const [error, setError] = useState('');
@@ -241,7 +241,7 @@ const fetchData = useCallback(async (start: string, end: string) => {
           <input
             type="date"
             value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
+            onChange={(e) => { sessionStorage.setItem('dashboard_startDate', e.target.value); setStartDate(e.target.value); }}
             className="bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-[#5d0024] outline-none"
           />
         </div>
@@ -250,7 +250,7 @@ const fetchData = useCallback(async (start: string, end: string) => {
           <input
             type="date"
             value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
+            onChange={(e) => { sessionStorage.setItem('dashboard_endDate', e.target.value); setEndDate(e.target.value); }}
             className="bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-[#5d0024] outline-none"
           />
         </div>
@@ -278,6 +278,8 @@ const fetchData = useCallback(async (start: string, end: string) => {
                 d.setDate(d.getDate() - d.getDay() + 1);
                 s = d.toISOString().split('T')[0];
               }
+              sessionStorage.setItem('dashboard_startDate', s);
+              sessionStorage.setItem('dashboard_endDate', e);
               setStartDate(s);
               setEndDate(e);
               fetchData(s, e);
