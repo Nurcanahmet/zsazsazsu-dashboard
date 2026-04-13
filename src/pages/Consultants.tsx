@@ -25,6 +25,12 @@ function Consultants() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [consultants, setConsultants] = useState<any[]>([]);
+  const [selectedConsultant, setSelectedConsultant] = useState<string>('');
+  const [selectedStore, setSelectedStore] = useState<string>(
+    userRole === 'store' && userStoreCodes && userStoreCodes.length > 0
+      ? userStoreCodes[0]
+      : ''
+  );
 
   // ---------- VERİ ÇEKME ----------
   const fetchData = async (start: string, end: string) => {
@@ -65,14 +71,32 @@ function Consultants() {
     fetchData(startDate, endDate);
   };
 
+  // Tüm mağazaları danışmanlardan türet (varsayım: SalespersonCode başında M001, M002 var)
+  // Backend'den gelmiyorsa users veya başka kaynak gerekir. Şimdilik consultants içinden alalım.
+  // Mağaza dropdown'u için liste:
+  // - admin: tüm mağazaları consultants'tan türet
+  // - super_user: kendi izinli mağazaları
+  // - store: sadece kendi mağazası (zaten otomatik seçili)
+  const availableStores =
+    userRole === 'admin'
+      ? Array.from(new Set(consultants.map((c: any) => c.storeCode).filter(Boolean))).sort()
+      : userStoreCodes || [];
+  // Seçili danışman varsa sadece onu göster, yoksa tümünü
+ // Hem mağaza hem danışman filtresine göre filtrele
+  // Hem mağaza hem danışman filtresine göre filtrele
+ const displayConsultants = consultants.filter((c: any) => {
+    const matchStore = !selectedStore || c.storeCode === selectedStore;
+    const matchConsultant = !selectedConsultant || c.name === selectedConsultant;
+    return matchStore && matchConsultant;
+  });
   const bestConsultant = consultants.length > 0 ? consultants[0] : null;
 
-  const salesChartData = consultants.map(c => ({
+  const salesChartData = displayConsultants.map(c => ({
     name: c.name.split(' ')[0],
     value: c.salesAmount,
   }));
 
-  const invoiceChartData = consultants.map(c => ({
+  const invoiceChartData = displayConsultants.map(c => ({
     name: c.name.split(' ')[0],
     value: c.invoiceCount,
   }));
@@ -115,6 +139,41 @@ function Consultants() {
           >
             {loading ? 'Yükleniyor...' : 'Filtrele'}
           </button>
+
+          {/* Danışman seçici */}
+          <div>
+            <label className="text-xs text-[#5d0024]/60 block mb-1">Danışman</label>
+            <select
+              value={selectedConsultant}
+              onChange={(e) => setSelectedConsultant(e.target.value)}
+              className="bg-[#5d0024] text-[#d7d2cb] border border-white/20 rounded-lg px-3 py-1.5 text-sm outline-none min-w-[200px]"
+            >
+              {consultants
+                .filter((c: any) => !selectedStore || c.storeCode === selectedStore)
+                .map((c: any) => (
+                  <option key={c.name} value={c.name}>{c.name}</option>
+                ))}
+            </select>
+          </div>
+
+          {/* Mağaza seçici - sadece admin/super_user için */}
+          {userRole !== 'store' && (
+            <div>
+              <label className="text-xs text-[#5d0024]/60 block mb-1">Mağaza</label>
+              <select
+              value={selectedConsultant}
+              onChange={(e) => setSelectedConsultant(e.target.value)}
+              className="bg-[#5d0024] text-[#d7d2cb] border border-white/20 rounded-lg px-3 py-1.5 text-sm outline-none min-w-[200px]"
+            >
+              <option value="">Tüm Danışmanlar</option>
+              {consultants
+                .filter((c: any) => !selectedStore || c.storeCode === selectedStore)
+                .map((c: any) => (
+                  <option key={c.name} value={c.name}>{c.name}</option>
+                ))}
+            </select>
+            </div>
+          )}
         </div>
       </div>
 
@@ -150,7 +209,7 @@ function Consultants() {
           )}
 
           {/* ===== DANIŞMAN TABLOSU ===== */}
-          {consultants.length === 0 ? (
+          {displayConsultants.length === 0 ? (
             <div className="bg-white rounded-xl p-10 border border-gray-200 text-center text-gray-400 mb-6">
               Bu dönemde danışman verisi bulunamadı
             </div>
@@ -169,7 +228,7 @@ function Consultants() {
                   </tr>
                 </thead>
                 <tbody>
-                  {consultants.map((c: any) => (
+                  {displayConsultants.map((c: any) => (
                     <tr key={c.rank} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold ${
@@ -196,7 +255,7 @@ function Consultants() {
           )}
 
           {/* ===== GRAFİKLER ===== */}
-          {consultants.length > 0 && (
+          {displayConsultants.length > 0 && (
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-white rounded-xl p-4 border border-gray-200">
                 <h3 className="text-sm font-medium text-[#5d0024] mb-4">Satış Tutarı Karşılaştırması</h3>
